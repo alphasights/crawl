@@ -5,7 +5,7 @@ Gem::Specification.new do |gem|
   gem.authors       = ["Tor Erik Linnerud"]
   gem.email         = ["tor@alphasights.com"]
   gem.description   = "Crawl all pages on a domain, checking for errors"
-  gem.summary       = "Exhaustive search pages witin a domain, reporting any page that returns a bad response code"
+  gem.summary       = "Crawl pages witin a domain, reporting any page that returns a bad response code"
   gem.homepage      = "http://github.com/alphasights/crawl"
 
   gem.executables   = `git ls-files -- bin/*`.split("\n").map{ |f| File.basename(f) }
