@@ -1,6 +1,6 @@
 # encoding: utf-8
-puts require('nokogiri')
-puts require('rest_client')
+require('nokogiri')
+require('rest_client')
 require 'ci/reporter/core'
 
 require 'base64'
