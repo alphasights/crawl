@@ -112,10 +112,9 @@ private
     test_case.start
     puts "  Fetching.." if @verbose
 
-    headers = {}
-    #headers.merge!(Authorization: "Basic #{@authorization}") if options[:username]
-    headers.merge(user: options[:username], password: options[:password])
-    response = RestClient.get(options[:domain] + link, headers)
+    attributes = {:method => :get, :url => options[:domain] + link}
+    attributes.merge!(user: options[:username], password: options[:password])
+    response = RestClient::Request.execute(attributes)
     test_suite.name = link
     test_case.name = link
     test_case.finish
