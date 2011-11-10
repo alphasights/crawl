@@ -132,7 +132,7 @@ private
     test_suite.finish
     @report_manager.write_report(test_suite) if options[:ci]
     return response
-  rescue RestClient::InternalServerError => e
+  rescue RestClient::InternalServerError, RestClient::ResourceNotFound => e
     @errors << Result.new(link, "Error whilst retrieving page: #{e.message}")
     @invalid_links << link
     return nil
