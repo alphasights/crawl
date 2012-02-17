@@ -33,6 +33,7 @@ class Crawl::Engine
     @verbose = options[:verbose] || ENV['VERBOSE']
     @number_of_dots = 0
     @report_manager = CI::Reporter::ReportManager.new("crawler") if options[:ci]
+    @validate_markup = options[:markup]
   end
 
   def run
@@ -43,7 +44,7 @@ class Crawl::Engine
         next unless response.headers[:content_type] =~ %r{text/html}
         @visited_documents << link
         @found_links += links = find_links(link, response.to_str)
-        # validate(link, response.body_str)
+        validate(link, response.body) if @validate_markup
       end
     end
   end
@@ -87,7 +88,6 @@ private
     error_messages = messages.select { |message| message['type'] != 'info' }
 
     if error_messages.empty?
-      handle_success
       true
     else
       response = error_messages.map do |message|
@@ -97,7 +97,6 @@ private
       end.join("\n\n")
 
       @errors << Result.new(link, response)
-      handle_error('I')
       false
     end
   rescue RestClient::ServiceUnavailable
