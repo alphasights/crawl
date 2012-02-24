@@ -131,10 +131,13 @@ private
     test_suite.finish
     @report_manager.write_report(test_suite) if options[:ci]
     return response
-  rescue RestClient::InternalServerError, RestClient::ResourceNotFound, RestClient::Unauthorized => e
-    @errors << Result.new(link, "Error whilst retrieving page: #{e.message}")
-    @invalid_links << link
-    return nil
+  rescue RestClient::InternalServerError,
+    RestClient::ResourceNotFound,
+    RestClient::Unauthorized,
+    RestClient::RequestFailed => e
+      @errors << Result.new(link, "Error whilst retrieving page: #{e.message}")
+      @invalid_links << link
+      return nil
   end
 
   def linked_from(target)
