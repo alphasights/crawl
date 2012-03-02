@@ -1,4 +1,8 @@
 # encoding: utf-8
+
+require 'eventmachine'
+require 'em-http-request'
+
 class Crawl::Engine
   DEFAULT_OPTIONS = {:domain => '',
                      :start => ['/'],
@@ -21,35 +25,36 @@ class Crawl::Engine
   def initialize(caller_options = {})
     @options = DEFAULT_OPTIONS.merge(caller_options)
     @authorization = Base64.encode64("#{options[:username]}:#{options[:password]}")
+    @verbose = options[:verbose] || ENV['VERBOSE']
+    @validate_markup = options[:markup]
+    @register = Crawl::Register.new(options[:start].to_a)
 
-    @found_links = options[:start].to_set
-    @link_sources = {}
-    @found_links.each {|target| @link_sources[target] = 'Initial'}
-    @visited_links = Set[]
-    @visited_documents = Set[]
     @invalid_links = Set[]
     @broken_pages = []
     @errors = []
-    @verbose = options[:verbose] || ENV['VERBOSE']
-    @number_of_dots = 0
+            
+    @link_sources = {}
+    # @pending_queue.each {|target| @link_sources[target] = 'Initial'}
+
     @report_manager = CI::Reporter::ReportManager.new("crawler") if options[:ci]
-    @validate_markup = options[:markup]
   end
 
   def run
-    until (links = @found_links - (@visited_links + @invalid_links)).empty? do
-      links.each do |link|
-        puts "\nChecking #{link}" if @verbose
-        next unless response = retrieve(link)
-        next unless response.headers[:content_type] =~ %r{text/html}
-        @visited_documents << link
-        @found_links += links = find_links(link, response.to_str)
-        validate(link, response.body) if @validate_markup
-      end
+    EventMachine.run do
+      process_next
     end
   end
 
-
+  def process_next
+    if @register.finished?
+      EventMachine.stop
+    elsif (link = @register.next_link)
+      puts "\nChecking #{link}" if @verbose
+      retrieve(link)
+      # validate(link, response.body) if @validate_markup
+      process_next
+    end
+  end
 
   def summarize
     if @errors.size > 0
@@ -62,7 +67,7 @@ class Crawl::Engine
 
       print(<<-SUM)
 
-Pages crawled: #{@visited_documents.size}
+Pages crawled: #{@register.processed_size}
 Pages with errors: #{@errors.size - @invalid_links.size}
 Broken pages: #{@broken_pages.size}
 Invalid links: #{@invalid_links.size}
@@ -72,7 +77,7 @@ I=Invalid P=Parse Error S=Status code bad
 SUM
       exit(@errors.size)
     else
-       puts "\n\n#{@visited_documents.size} pages crawled"
+       puts "\n\n#{@register.processed_size} pages crawled"
     end
 
     puts
@@ -104,40 +109,59 @@ private
     false
   end
 
-  def retrieve(link)
-    test_suite = CI::Reporter::TestSuite.new(link)
-    test_case  = CI::Reporter::TestCase.new(link)
-    test_suite.start
-    test_case.start
-    puts "  Fetching.." if @verbose
 
-    attributes = {:method => :get, :url => options[:domain] + link}
-    attributes.merge!(user: options[:username], password: options[:password])
-    response = RestClient::Request.execute(attributes)
-    test_suite.name = link
-    test_case.name = link
-    test_case.finish
-    @visited_links << link
-    unless VALID_RESPONSE_CODES.include?(response.code)
-      @errors << Result.new(link, "Status code was #{response.code}")
-      @broken_pages << link
-      test_case.failures << Crawl::Failure.new(link, response.code, linked_from(link))
-      test_suite.testcases << test_case
-      test_suite.finish
-      @report_manager.write_report(test_suite) if options[:ci]
-      return nil
-    end
-    test_suite.testcases << test_case
-    test_suite.finish
-    @report_manager.write_report(test_suite) if options[:ci]
-    return response
-  rescue RestClient::InternalServerError,
-    RestClient::ResourceNotFound,
-    RestClient::Unauthorized,
-    RestClient::RequestFailed => e
-      @errors << Result.new(link, "Error whilst retrieving page: #{e.message}")
+  def retrieve(link)
+    # test_suite = CI::Reporter::TestSuite.new(link)
+    # test_case  = CI::Reporter::TestCase.new(link)
+    # test_suite.start
+    # test_case.start
+    # test_suite.name = link
+    # test_case.name = link
+
+    # attributes = {:method => :get, :url => options[:domain] + link}
+    # attributes.merge!(user: options[:username], password: options[:password])
+    # response = RestClient::Request.execute(attributes)
+
+    puts "Fetching #{options[:domain] + link} ..." if @verbose
+    
+    unless link.start_with? '/'
+      @register.returned link
+      @errors << Result.new(link, "Relative path found. Crawl does not support relative paths.")
       @invalid_links << link
       return nil
+    end
+    
+    http = EventMachine::HttpRequest.new(options[:domain] + link)
+    req = http.get :redirects => MAX_REDIRECTS, :head => {'authorization' => [options[:username], options[:password]]}
+
+    req.errback do
+      @register.returned link
+      @errors << Result.new(link, "Error whilst retrieving page: TODO MSG")
+      @invalid_links << link
+    end
+
+    req.callback do
+      @register.returned link
+      if VALID_RESPONSE_CODES.include?(req.response_header.status)
+        if req.response_header["CONTENT_TYPE"] =~ %r{text/html}
+          @register.add find_links(link, req.response.to_str)
+        end
+      else
+        @errors << Result.new(link, "Status code was #{req.response_header.status}")
+        @broken_pages << link
+        # test_case.failures << Crawl::Failure.new(link, req.response_header.status, linked_from(link))
+        # test_suite.testcases << test_case
+        # test_suite.finish
+        # @report_manager.write_report(test_suite) if options[:ci]
+      end
+      process_next
+    end
+
+    # test_case.finish
+    # test_suite.testcases << test_case
+    # test_suite.finish
+    # @report_manager.write_report(test_suite) if options[:ci]
+    # return response
   end
 
   def linked_from(target)
@@ -157,10 +181,8 @@ private
     raw_links.delete_if{|link| link =~ %r{^http://}}
     raw_links.delete_if{|link| IGNORE.any?{|pattern| link =~ pattern}}
     raw_links.each do |target_link|
-      unless @found_links.include?(target_link)
-        puts "    Adding #{target_link} found on #{source_link}" if @verbose
-        @link_sources[target_link] = source_link
-      end
+      puts "    Adding #{target_link} found on #{source_link}" if @verbose
+      @link_sources[target_link] = source_link
     end
 
     raw_links
