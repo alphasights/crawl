@@ -1,8 +1,5 @@
 # encoding: utf-8
 
-require 'eventmachine'
-require 'em-http-request'
-
 class Crawl::Engine
   DEFAULT_OPTIONS = {:domain => '',
                      :start => ['/'],
@@ -29,13 +26,12 @@ class Crawl::Engine
     @validate_markup = options[:markup]
     @register = Crawl::Register.new(options[:start].to_a)
 
+    # TODO: encapsulate in @register
     @invalid_links = Set[]
     @broken_pages = []
     @errors = []
-            
     @link_sources = {}
-    # @pending_queue.each {|target| @link_sources[target] = 'Initial'}
-
+    
     @report_manager = CI::Reporter::ReportManager.new("crawler") if options[:ci]
   end
 
@@ -109,6 +105,12 @@ private
     false
   end
 
+  def register_error(link, message)
+    @register.returned link
+    @errors << Result.new(link, message)
+    @invalid_links << link
+    process_next
+  end
 
   def retrieve(link)
     # test_suite = CI::Reporter::TestSuite.new(link)
@@ -118,26 +120,30 @@ private
     # test_suite.name = link
     # test_case.name = link
 
-    # attributes = {:method => :get, :url => options[:domain] + link}
-    # attributes.merge!(user: options[:username], password: options[:password])
-    # response = RestClient::Request.execute(attributes)
-
     puts "Fetching #{options[:domain] + link} ..." if @verbose
     
     unless link.start_with? '/'
-      @register.returned link
-      @errors << Result.new(link, "Relative path found. Crawl does not support relative paths.")
-      @invalid_links << link
+      register_error(link, "Relative path found. Crawl does not support relative paths.")
       return nil
     end
     
     http = EventMachine::HttpRequest.new(options[:domain] + link)
     req = http.get :redirects => MAX_REDIRECTS, :head => {'authorization' => [options[:username], options[:password]]}
-
+    req.timeout(30)
+    
     req.errback do
-      @register.returned link
-      @errors << Result.new(link, "Error whilst retrieving page: TODO MSG")
-      @invalid_links << link
+      if req.nil?
+         @register.retry(link, 'WAT?')
+         process_next
+       elsif msg = req.error
+         register_error(link, msg)
+       elsif req.response.nil? || req.response.empty?
+         # no response at all?
+         register_error(link, 'Timeout?')
+       else
+         @register.retry(link, 'Partial response: Server Broke Connection?')
+         process_next
+       end
     end
 
     req.callback do
@@ -161,7 +167,6 @@ private
     # test_suite.testcases << test_case
     # test_suite.finish
     # @report_manager.write_report(test_suite) if options[:ci]
-    # return response
   end
 
   def linked_from(target)
@@ -175,10 +180,11 @@ private
     anchors.reject!{|anchor| anchor['onclick'].to_s =~ /f.method = 'POST'/}
     anchors.reject!{|anchor| anchor['data-method'] =~ /put|post|delete/ }
     anchors.reject!{|anchor| anchor['class'].to_s =~ /unobtrusive_/}
+    anchors.reject!{|anchor| anchor['rel'].to_s =~ /nofollow/}
     raw_links = anchors.map{|anchor| anchor['href']}
     raw_links.compact!
     raw_links.map!{|link| link.sub(options[:domain], '')}
-    raw_links.delete_if{|link| link =~ %r{^http://}}
+    raw_links.delete_if{|link| link =~ %r{^http(s)?://}}
     raw_links.delete_if{|link| IGNORE.any?{|pattern| link =~ pattern}}
     raw_links.each do |target_link|
       puts "    Adding #{target_link} found on #{source_link}" if @verbose
