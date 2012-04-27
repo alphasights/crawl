@@ -14,10 +14,7 @@ class Crawl::Engine
   MAX_REDIRECTS = 3
   LINE_WIDTH = 78
 
-  Result = Struct.new(:url, :object)
-
-  attr_reader :options, :errors
-
+  attr_reader :options
 
   def initialize(caller_options = {})
     @options = DEFAULT_OPTIONS.merge(caller_options)
@@ -25,12 +22,6 @@ class Crawl::Engine
     @verbose = options[:verbose] || ENV['VERBOSE']
     @validate_markup = options[:markup]
     @register = Crawl::Register.new(options[:start].to_a)
-
-    # TODO: encapsulate in @register
-    @invalid_links = Set[]
-    @broken_pages = []
-    @errors = []
-    @link_sources = {}
 
     @report_manager = CI::Reporter::ReportManager.new("crawler") if options[:ci]
   end
@@ -54,30 +45,11 @@ class Crawl::Engine
   end
 
   def summarize
-    if @errors.size > 0
+    @register.summarize
+  end
 
-      @errors.each do |error|
-        puts "\n#{error.url}"
-        puts "  Linked from #{linked_from(error.url)}"
-        puts error.object.to_s.word_wrap.split("\n").map{|line| '  ' + line}
-      end
-
-      print(<<-SUM)
-
-Pages crawled: #{@register.processed_size}
-Pages with errors: #{@errors.size - @invalid_links.size}
-Broken pages: #{@broken_pages.size}
-Invalid links: #{@invalid_links.size}
-
-I=Invalid P=Parse Error S=Status code bad
-
-SUM
-      exit(@errors.size)
-    else
-       puts "\n\n#{@register.processed_size} pages crawled"
-    end
-
-    puts
+  def errors?
+    @register.errors?
   end
 
 private
@@ -98,7 +70,7 @@ private
         "\e[#{type_color};1m" + type.capitalize + "\e[0m: " + message
       end.join("\n\n")
 
-      @errors << Result.new(link, response)
+      @register.error link, response
       false
     end
   rescue RestClient::ServiceUnavailable
@@ -107,9 +79,8 @@ private
   end
 
   def register_error(link, message)
-    @register.returned link
-    @errors << Result.new(link, message)
-    @invalid_links << link
+    @register.error link, message
+    @register.returned_invalid link
     process_next
   end
 
@@ -140,7 +111,8 @@ private
          register_error(link, msg)
        elsif req.response.nil? || req.response.empty?
          # no response at all?
-         register_error(link, 'Timeout?')
+         @register.retry(link, 'Timeout?')
+         # register_error(link, 'Timeout?')
        else
          @register.retry(link, 'Partial response: Server Broke Connection?')
          process_next
@@ -148,14 +120,14 @@ private
     end
 
     req.callback do
-      @register.returned link
       if VALID_RESPONSE_CODES.include?(req.response_header.status)
+        @register.returned link
         if req.response_header["CONTENT_TYPE"] =~ %r{text/html}
           @register.add find_links(link, req.response.to_str)
         end
       else
-        @errors << Result.new(link, "Status code was #{req.response_header.status}")
-        @broken_pages << link
+        @register.error link, "Status code was #{req.response_header.status}"
+        @register.returned_broken link
         # test_case.failures << Crawl::Failure.new(link, req.response_header.status, linked_from(link))
         # test_suite.testcases << test_case
         # test_suite.finish
@@ -171,7 +143,7 @@ private
   end
 
   def linked_from(target)
-    @link_sources[target] # => source
+    @register.source_for target
   end
 
   def find_links(source_link, body)
@@ -180,6 +152,7 @@ private
     anchors = doc.css('a').to_a
     anchors.reject!{|anchor| anchor['onclick'].to_s =~ /f.method = 'POST'/}
     anchors.reject!{|anchor| anchor['data-method'] =~ /put|post|delete/ }
+    anchors.reject!{|anchor| anchor['data-remote'] =~ /true/ }
     anchors.reject!{|anchor| anchor['class'].to_s =~ /unobtrusive_/}
     anchors.reject!{|anchor| anchor['rel'].to_s =~ /nofollow/}
     raw_links = anchors.map{|anchor| anchor['href']}
@@ -189,7 +162,7 @@ private
     raw_links.delete_if{|link| IGNORE.any?{|pattern| link =~ pattern}}
     raw_links.each do |target_link|
       puts "    Adding #{target_link} found on #{source_link}" if @verbose
-      @link_sources[target_link] = source_link
+      @register.set_link_source(target_link, source_link)
     end
 
     raw_links

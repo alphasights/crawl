@@ -32,7 +32,7 @@ end
 crawler.run
 crawler.summarize
 
-unless crawler.errors.empty?
+if crawler.errors?
   puts 'Errors during crawling'
   exit -1
 end
