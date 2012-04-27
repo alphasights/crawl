@@ -31,7 +31,7 @@ class Crawl::Engine
     @broken_pages = []
     @errors = []
     @link_sources = {}
-    
+
     @report_manager = CI::Reporter::ReportManager.new("crawler") if options[:ci]
   end
 
@@ -42,6 +42,7 @@ class Crawl::Engine
   end
 
   def process_next
+    return if @register.processing_size >= EM.threadpool_size
     if @register.finished?
       EventMachine.stop
     elsif (link = @register.next_link)
@@ -121,16 +122,16 @@ private
     # test_case.name = link
 
     puts "Fetching #{options[:domain] + link} ..." if @verbose
-    
+
     unless link.start_with? '/'
       register_error(link, "Relative path found. Crawl does not support relative paths.")
       return nil
     end
-    
+
     http = EventMachine::HttpRequest.new(options[:domain] + link)
     req = http.get :redirects => MAX_REDIRECTS, :head => {'authorization' => [options[:username], options[:password]]}
     req.timeout(30)
-    
+
     req.errback do
       if req.nil?
          @register.retry(link, 'WAT?')
