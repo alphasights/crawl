@@ -110,8 +110,8 @@ private
        elsif msg = req.error
          register_error(link, msg)
        elsif req.response.nil? || req.response.empty?
-         # no response at all?
          @register.retry(link, 'Timeout?')
+         process_next
          # register_error(link, 'Timeout?')
        else
          @register.retry(link, 'Partial response: Server Broke Connection?')
