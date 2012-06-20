@@ -8,7 +8,6 @@ optparse = OptionParser.new do |opts|
   opts.on('-s', '--start /home,/about', Array, 'Starting path(s), defaults to /') { |o| options[:start] = o }
   opts.on('-u', '--username username', String, 'Basic auth username') { |o| options[:username] = o }
   opts.on('-p', '--password password', String, 'Basic auth password') { |o| options[:password] = o }
-  opts.on('-c', '--ci', 'Output files for CI integration') { |o| options[:ci] = o }
   opts.on('-v', '--verbose', 'Give details when crawling') { |o| $verbose = o }
   opts.on_tail("-h", "--help", "Show this message") { |o| puts opts; exit }
 end.parse!
