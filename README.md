@@ -15,7 +15,7 @@ Usage:
 
 Example:
 
-    > bin/crawl http://alphasights.com --start=/no-such-page --verbose
+    > crawl http://alphasights.com --start=/no-such-page --verbose
 
       Adding /no-such-page
     Fetching /no-such-page ...
