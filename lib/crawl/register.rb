@@ -2,62 +2,38 @@ class Crawl::Register
 
   Result = Struct.new(:url, :object)
 
-  def initialize(unprocessed, verbose)
-    @unprocessed = unprocessed
-    @processing = []
-    @processed = []
-
-    @invalid_links = Set[]
-    @broken_pages = Set[]
-
-    @errors = []
-    @link_sources = {}
-
-    @verbose = verbose
+  def initialize
+    @unprocessed = Set.new
+    @processing = Set.new
+    @processed = Set.new
   end
 
-  def add(links)
-    new_links = links - @processed - @processing - @unprocessed
-    new_links.each do |new_link|
-      puts "    Adding #{new_link} found on #{source_for(new_link)}" if @verbose
+  def add(pages)
+    new_pages = pages.to_set - @processed - @processing - @unprocessed
+    new_pages.each do |new_page|
+      puts "  Adding #{new_page.url}" if $verbose
     end
-    @unprocessed += new_links
+    @unprocessed.merge(new_pages)
   end
 
-  def next_link
-    link = @unprocessed.shift
-    @processing << link if link
+  def next_page
+    page = @unprocessed.first
+    @unprocessed.delete(page)
+    @processing << page if page
     if @processing.size > EM.threadpool_size
       puts "WARNING: #{@processing.size} pages are being process when EM threadpool only has #{EM.threadpool_size} threads."
     end
-    link
+    page
   end
 
-  def set_link_source(link, source)
-    @link_sources[link] = source
+  def retry(page)
+    @unprocessed << page
+    @processing.delete(page)
   end
 
-  def source_for(link)
-    @link_sources.fetch link, '?'
-  end
-
-  def error(link, object)
-    @errors << Result.new(link, object)
-  end
-
-  def returned_invalid(link)
-    returned link
-    @invalid_links << link
-  end
-
-  def returned_broken(link)
-    returned link
-    @broken_pages << link
-  end
-
-  def returned(link)
-    @processed << link
-    @processing -= [link]
+  def completed(page)
+    @processed << page
+    @processing.delete(page)
   end
 
   def finished?
@@ -68,40 +44,22 @@ class Crawl::Register
     @processing.size
   end
 
-  def retry(link, reason)
-    puts "Retrying #{link} : #{reason}"
-    @processing -= [link]
-    @unprocessed << link
-  end
-
-  def summarize
-    if @errors.size > 0
-
-      @errors.each do |error|
-        puts "\n#{error.url}"
-        puts "  Linked from #{source_for error.url}"
-        puts error.object.to_s.word_wrap.split("\n").map{|line| '  ' + line}
-      end
-
-      print(<<-SUM)
-
-Pages crawled: #{@processed.size}
-Pages with errors: #{@errors.size - @invalid_links.size}
-Broken pages: #{@broken_pages.size}
-Invalid links: #{@invalid_links.size}
-
-I=Invalid P=Parse Error S=Status code bad
-
-SUM
-      exit(@errors.size)
-    else
-       puts "\n\n#{@processed.size} pages crawled"
-    end
-
-    puts
+  def error_pages
+    @processed.select{ |page| page.error }
   end
 
   def errors?
-    @errors.size > 0
+    !error_pages.empty?
+  end
+
+  def summarize
+    if errors?
+      puts "\nPages with errors:"
+      error_pages.each do |page|
+        puts page.to_s
+      end
+    else
+       puts "\n#{@processed.size} pages crawled without errors."
+    end
   end
 end

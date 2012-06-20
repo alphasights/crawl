@@ -19,11 +19,12 @@ class Crawl::Engine
   def initialize(caller_options = {})
     @options = DEFAULT_OPTIONS.merge(caller_options)
     @authorization = Base64.encode64("#{options[:username]}:#{options[:password]}")
-    @verbose = options[:verbose] || ENV['VERBOSE']
     @validate_markup = options[:markup]
-    @register = Crawl::Register.new(options[:start].to_a, @verbose)
+    @register = Crawl::Register.new
 
-    @report_manager = CI::Reporter::ReportManager.new("crawler") if options[:ci]
+    start_pages = options[:start].to_a.map{|page| Page.new(@register, page, 'the command line')}
+
+    @register.add(start_pages)
   end
 
   def run
@@ -36,10 +37,9 @@ class Crawl::Engine
     return if @register.processing_size >= EM.threadpool_size
     if @register.finished?
       EventMachine.stop
-    elsif (link = @register.next_link)
-      puts "\nChecking #{link}" if @verbose
-      retrieve(link)
-      # validate(link, response.body) if @validate_markup
+    elsif (page = @register.next_page)
+      retrieve(page)
+      # validate(page, response.body) if @validate_markup
       process_next
     end
   end
@@ -55,7 +55,7 @@ class Crawl::Engine
 private
 
   def validate(link, body)
-    puts "  Validating..." if @verbose
+    puts "  Validating..." if $verbose
 
     json_response = RestClient.post 'http://validator.nu?out=json', body, :content_type => 'text/html; charset=utf-8'
     messages = JSON.parse(json_response.body)['messages']
@@ -78,76 +78,49 @@ private
     false
   end
 
-  def register_error(link, message)
-    @register.error link, message
-    @register.returned_invalid link
-    process_next
-  end
+  def retrieve(page)
+    puts "Fetching #{page.url} ..." if $verbose
 
-  def retrieve(link)
-    # test_suite = CI::Reporter::TestSuite.new(link)
-    # test_case  = CI::Reporter::TestCase.new(link)
-    # test_suite.start
-    # test_case.start
-    # test_suite.name = link
-    # test_case.name = link
+    full_url = options[:domain] + page.url
+    # unless full_url.start_with? '/'
+    #   page.fatal("Crawl does not support absolute paths.")
+    #   return nil
+    # end
 
-    puts "Fetching #{options[:domain] + link} ..." if @verbose
-
-    unless link.start_with? '/'
-      register_error(link, "Relative path found. Crawl does not support relative paths.")
-      return nil
-    end
-
-    http = EventMachine::HttpRequest.new(options[:domain] + link)
+    http = EventMachine::HttpRequest.new(full_url)
     req = http.get :redirects => MAX_REDIRECTS, :head => {'authorization' => [options[:username], options[:password]]}
-    req.timeout(30)
+    req.timeout(15)
 
     req.errback do
       if req.nil?
-         @register.retry(link, 'WAT?')
-         process_next
+         page.intermittent("Req is nil. WAT?")
        elsif msg = req.error
-         register_error(link, msg)
+         page.intermittent(msg)
        elsif req.response.nil? || req.response.empty?
-         @register.retry(link, 'Timeout?')
-         process_next
-         # register_error(link, 'Timeout?')
+         page.intermittent('Timeout?')
        else
-         @register.retry(link, 'Partial response: Server Broke Connection?')
-         process_next
+         page.intermittent('Partial response: Server Broke Connection?')
        end
+       process_next
     end
 
     req.callback do
-      if VALID_RESPONSE_CODES.include?(req.response_header.status)
-        @register.returned link
+      status_code = req.response_header.status
+      if VALID_RESPONSE_CODES.include?(status_code)
+        page.success
         if req.response_header["CONTENT_TYPE"] =~ %r{text/html}
-          @register.add find_links(link, req.response.to_str)
+          @register.add find_linked_pages(page, req.response.to_str)
         end
+      elsif(status_code == 503)
+        page.intermittent("Status code: 503")
       else
-        @register.error link, "Status code was #{req.response_header.status}"
-        @register.returned_broken link
-        # test_case.failures << Crawl::Failure.new(link, req.response_header.status, linked_from(link))
-        # test_suite.testcases << test_case
-        # test_suite.finish
-        # @report_manager.write_report(test_suite) if options[:ci]
+        page.fatal("Status code: #{status_code}")
       end
       process_next
     end
-
-    # test_case.finish
-    # test_suite.testcases << test_case
-    # test_suite.finish
-    # @report_manager.write_report(test_suite) if options[:ci]
   end
 
-  def linked_from(target)
-    @register.source_for target
-  end
-
-  def find_links(source_link, body)
-    puts "  Finding links.." if @verbose
+  def find_linked_pages(page, body)
     doc = Nokogiri::HTML(body)
     anchors = doc.css('a').to_a
     anchors.reject!{|anchor| anchor['onclick'].to_s =~ /f.method = 'POST'/}
@@ -160,10 +133,6 @@ private
     raw_links.map!{|link| link.sub(options[:domain], '')}
     raw_links.delete_if{|link| link =~ %r{^http(s)?://}}
     raw_links.delete_if{|link| IGNORE.any?{|pattern| link =~ pattern}}
-    raw_links.each do |target_link|
-      @register.set_link_source(target_link, source_link)
-    end
-
-    raw_links
+    raw_links.map{ |url| Page.new(@register, url, page.url) }
   end
 end
