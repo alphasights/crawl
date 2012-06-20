@@ -10,6 +10,7 @@ optparse = OptionParser.new do |opts|
   opts.on('-p', '--password password', String, 'Basic auth password') { |o| options[:password] = o }
   opts.on('-v', '--verbose', 'Give details when crawling') { |o| $verbose = o }
   opts.on_tail("-h", "--help", "Show this message") { |o| puts opts; exit }
+  opts.on_tail("-v", "--version", "Print version") { |o| puts Crawl::VERSION; exit }
 end.parse!
 
 options.merge!(domain: optparse.first)
