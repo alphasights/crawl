@@ -19,7 +19,6 @@ class Crawl::Engine
   def initialize(caller_options = {})
     @options = DEFAULT_OPTIONS.merge(caller_options)
     @authorization = Base64.encode64("#{options[:username]}:#{options[:password]}")
-    @validate_markup = options[:markup]
     @register = Crawl::Register.new
 
     start_pages = options[:start].to_a.map{|page| Page.new(@register, page, 'the command line')}
@@ -39,7 +38,6 @@ class Crawl::Engine
       EventMachine.stop
     elsif (page = @register.next_page)
       retrieve(page)
-      # validate(page, response.body) if @validate_markup
       process_next
     end
   end
@@ -54,38 +52,10 @@ class Crawl::Engine
 
 private
 
-  def validate(link, body)
-    puts "  Validating..." if $verbose
-
-    json_response = RestClient.post 'http://validator.nu?out=json', body, :content_type => 'text/html; charset=utf-8'
-    messages = JSON.parse(json_response.body)['messages']
-    error_messages = messages.select { |message| message['type'] != 'info' }
-
-    if error_messages.empty?
-      true
-    else
-      response = error_messages.map do |message|
-        type, message = message['type'], message['message']
-        type_color = type == 'error' ? 31 : 33
-        "\e[#{type_color};1m" + type.capitalize + "\e[0m: " + message
-      end.join("\n\n")
-
-      @register.error link, response
-      false
-    end
-  rescue RestClient::ServiceUnavailable
-    handle_error('U')
-    false
-  end
-
   def retrieve(page)
     puts "Fetching #{page.url} ..." if $verbose
 
     full_url = options[:domain] + page.url
-    # unless full_url.start_with? '/'
-    #   page.fatal("Crawl does not support absolute paths.")
-    #   return nil
-    # end
 
     http = EventMachine::HttpRequest.new(full_url)
     req = http.get :redirects => MAX_REDIRECTS, :head => {'authorization' => [options[:username], options[:password]]}
