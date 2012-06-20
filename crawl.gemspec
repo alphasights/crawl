@@ -16,7 +16,6 @@ Gem::Specification.new do |gem|
   gem.version       = Crawl::VERSION
   gem.add_dependency('nokogiri')
   gem.add_dependency('rest-client')
-  gem.add_dependency('ci_reporter')
-  gem.add_dependency('eventmachine', '~> 1.0.0.beta.4')
+  gem.add_dependency('eventmachine', '~> 1.0.0.rc1')
   gem.add_dependency('em-http-request')
 end
