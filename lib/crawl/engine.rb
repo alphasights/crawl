@@ -21,7 +21,7 @@ class Crawl::Engine
     @authorization = Base64.encode64("#{options[:username]}:#{options[:password]}")
     @verbose = options[:verbose] || ENV['VERBOSE']
     @validate_markup = options[:markup]
-    @register = Crawl::Register.new(options[:start].to_a)
+    @register = Crawl::Register.new(options[:start].to_a, @verbose)
 
     @report_manager = CI::Reporter::ReportManager.new("crawler") if options[:ci]
   end
@@ -161,7 +161,6 @@ private
     raw_links.delete_if{|link| link =~ %r{^http(s)?://}}
     raw_links.delete_if{|link| IGNORE.any?{|pattern| link =~ pattern}}
     raw_links.each do |target_link|
-      puts "    Adding #{target_link} found on #{source_link}" if @verbose
       @register.set_link_source(target_link, source_link)
     end
 

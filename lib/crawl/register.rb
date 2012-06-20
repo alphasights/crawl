@@ -2,7 +2,7 @@ class Crawl::Register
 
   Result = Struct.new(:url, :object)
 
-  def initialize(unprocessed)
+  def initialize(unprocessed, verbose)
     @unprocessed = unprocessed
     @processing = []
     @processed = []
@@ -12,10 +12,15 @@ class Crawl::Register
 
     @errors = []
     @link_sources = {}
+
+    @verbose = verbose
   end
 
   def add(links)
     new_links = links - @processed - @processing - @unprocessed
+    new_links.each do |new_link|
+      puts "    Adding #{new_link} found on #{source_for(new_link)}" if @verbose
+    end
     @unprocessed += new_links
   end
 
