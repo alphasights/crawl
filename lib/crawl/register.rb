@@ -62,4 +62,8 @@ class Crawl::Register
        puts "\n#{@processed.size} pages crawled without errors."
     end
   end
+
+  def no_links_found?
+    @processed.size <= 1
+  end
 end

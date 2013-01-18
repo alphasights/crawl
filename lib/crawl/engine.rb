@@ -50,6 +50,10 @@ class Crawl::Engine
     @register.errors?
   end
 
+  def no_links_found?
+    @register.no_links_found?
+  end
+
 private
 
   def retrieve(page)
@@ -64,14 +68,14 @@ private
     req.errback do
       if req.nil?
          page.intermittent("Req is nil. WAT?")
-       elsif msg = req.error
-         page.intermittent(msg)
-       elsif req.response.nil? || req.response.empty?
-         page.intermittent('Timeout?')
-       else
-         page.intermittent('Partial response: Server Broke Connection?')
-       end
-       process_next
+      elsif msg = req.error
+       page.intermittent(msg)
+      elsif req.response.nil? || req.response.empty?
+       page.intermittent('Timeout?')
+      else
+       page.intermittent('Partial response: Server Broke Connection?')
+      end
+      process_next
     end
 
     req.callback do

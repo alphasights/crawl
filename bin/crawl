@@ -31,6 +31,6 @@ end
 crawler.run
 crawler.summarize
 
-if crawler.errors?
+if crawler.errors? || crawler.no_links_found?
   exit -1
 end
