@@ -105,7 +105,7 @@ private
     raw_links = anchors.map{|anchor| anchor['href']}
     raw_links.compact!
     raw_links.map!{|link| link.sub(options[:domain], '')}
-    raw_links.delete_if{|link| link =~ %r{^http(s)?://}}
+    raw_links.delete_if{|link| link =~ %r{^http(s)?://} && !link.include?(options[:domain])}
     raw_links.delete_if{|link| IGNORE.any?{|pattern| link =~ pattern}}
     raw_links.map{ |url| Page.new(@register, url, page.url) }
   end
