@@ -1,5 +1,5 @@
 require 'fileutils'
-require 'crawl/file_storage/uri_to_path'
+require_relative 'file_storage/uri_to_path'
 
 class Crawl::FileStorage
   def self.from_request(request, root_system_path)

@@ -1,4 +1,4 @@
 # encoding: utf-8
-module Crawl
+class Crawl
   VERSION = "1.0.3"
 end

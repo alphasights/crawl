@@ -9,7 +9,8 @@ optparse = OptionParser.new do |opts|
   opts.on('-u', '--username username', String, 'Basic auth username') { |o| options[:username] = o }
   opts.on('-p', '--password password', String, 'Basic auth password') { |o| options[:password] = o }
   opts.on('-k', '--keep-html directory', 'Keep HTML files', String, 'Dir to keep files') { |o| options[:keep_html] = o }
-  opts.on('-v', '--verbose', 'Give details when crawling') { |o| $verbose = o }
+  opts.on('-c', '--compare another_url', 'Compare to another website version', String, 'URL of the other website version') { |o| options[:compare_to] = o }
+  opts.on('-v', '--verbose', 'Give details when crawling') { |o| $VERBOSE = o }
   opts.on_tail("-h", "--help", "Show this message") { |o| puts opts; exit }
   opts.on_tail("-v", "--version", "Print version") { |o| puts Crawl::VERSION; exit }
 end.parse!
@@ -21,7 +22,7 @@ unless options[:domain]
   exit -1
 end
 
-crawler = Crawl::Engine.new(options)
+crawler = Crawl.new(options)
 
 trap("SIGINT") do
     puts "\n\nAborting crawl.."

@@ -43,6 +43,7 @@ class Page
       @register.completed(self)
     else
       @attempts += 1
+      puts "  Retrying #{self}" if $VERBOSE
       @register.retry(self)
     end
   end

@@ -11,7 +11,7 @@ class Crawl::Register
   def add(pages)
     new_pages = pages.to_set - @processed - @processing - @unprocessed
     new_pages.each do |new_page|
-      puts "  Adding #{new_page.url}" if $verbose
+      puts "  Adding #{new_page.url}" if $VERBOSE
     end
     @unprocessed.merge(new_pages)
   end

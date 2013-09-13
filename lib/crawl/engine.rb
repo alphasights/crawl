@@ -1,15 +1,6 @@
 # encoding: utf-8
 
 class Crawl::Engine
-  DEFAULT_OPTIONS = {:domain => '',
-                     :start => ['/'],
-                     :username => '',
-                     :password => '',
-                     :verbose => false,
-                     :session_id => false,
-                     :keep_html => false
-                    }
-
 
   IGNORE = [/#/, /mailto:/, /skype:/, /logout/, /javascript:/, %r(/xhr/), /https:/, /\.pdf$/, /^$/]
   VALID_RESPONSE_CODES = [200, 302]
@@ -18,8 +9,9 @@ class Crawl::Engine
 
   attr_reader :options
 
-  def initialize(caller_options = {})
-    @options = DEFAULT_OPTIONS.merge(caller_options)
+  def initialize(following_engine, options = {})
+    @following_engine = following_engine
+    @options = options
     @authorization = Base64.encode64("#{options[:username]}:#{options[:password]}")
     @register = Crawl::Register.new
 
@@ -38,6 +30,7 @@ class Crawl::Engine
     return if @register.processing_size >= EM.threadpool_size
     if @register.finished?
       EventMachine.stop
+      @following_engine.run if @following_engine
     elsif (page = @register.next_page)
       retrieve(page)
       process_next
@@ -59,9 +52,9 @@ class Crawl::Engine
 private
 
   def retrieve(page)
-    puts "Fetching #{page.url} ..." if $verbose
-
     full_url = options[:domain] + page.url
+
+    puts "Fetching #{full_url} ..." if $VERBOSE
 
     http = EventMachine::HttpRequest.new(full_url)
     req = http.get :redirects => MAX_REDIRECTS, :head => {'authorization' => [options[:username], options[:password]]}
@@ -69,13 +62,13 @@ private
 
     req.errback do
       if req.nil?
-         page.intermittent("Req is nil. WAT?")
+        page.intermittent("Req is nil. WAT?")
       elsif msg = req.error
-       page.intermittent(msg)
+        page.intermittent(msg)
       elsif req.response.nil? || req.response.empty?
-       page.intermittent('Timeout?')
+        page.intermittent('Timeout?')
       else
-       page.intermittent('Partial response: Server Broke Connection?')
+        page.intermittent('Partial response: Server Broke Connection?')
       end
       process_next
     end
