@@ -1,7 +1,7 @@
 # encoding: utf-8
 require('nokogiri')
 require('rest_client')
-require 'ci/reporter/core'
+# require 'ci/reporter/core'
 require 'eventmachine'
 require 'em-http-request'
 require 'base64'
@@ -13,6 +13,7 @@ require 'tempfile'
 require 'tmpdir'
 
 require_relative "crawl/version"
+require_relative "crawl/file_storage"
 require_relative "crawl/engine"
 require_relative "crawl/string"
 require_relative "crawl/failure"

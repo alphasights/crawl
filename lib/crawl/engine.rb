@@ -6,7 +6,9 @@ class Crawl::Engine
                      :username => '',
                      :password => '',
                      :verbose => false,
-                     :session_id => false}
+                     :session_id => false,
+                     :keep_html => false
+                    }
 
 
   IGNORE = [/#/, /mailto:/, /skype:/, /logout/, /javascript:/, %r(/xhr/), /https:/, /\.pdf$/, /^$/]
@@ -83,6 +85,7 @@ private
       if VALID_RESPONSE_CODES.include?(status_code)
         page.success
         if req.response_header["CONTENT_TYPE"] =~ %r{text/html}
+          Crawl::FileStorage.from_request(req, options[:keep_html]).persist if options[:keep_html]
           @register.add find_linked_pages(page, req.response.to_str)
         end
       elsif(status_code == 503)
