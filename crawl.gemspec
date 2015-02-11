@@ -14,8 +14,9 @@ Gem::Specification.new do |gem|
   gem.name          = "crawl"
   gem.require_paths = ["lib"]
   gem.version       = Crawl::VERSION
-  gem.add_dependency('nokogiri')
-  gem.add_dependency('rest-client')
-  gem.add_dependency('eventmachine', '1.0.1')
-  gem.add_dependency('em-http-request', '1.0.3')
+  gem.licenses      = ['MIT']
+  gem.add_dependency('nokogiri', '~> 1.6')
+  gem.add_dependency('rest-client', '~> 1.7')
+  gem.add_dependency('eventmachine', '~> 1.0')
+  gem.add_dependency('em-http-request', '~> 1.1')
 end
