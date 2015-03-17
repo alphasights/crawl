@@ -23,6 +23,8 @@ unless options[:domain]
   exit -1
 end
 
+options[:domain] = "http://#{options[:domain]}" unless options[:domain].include?('://')
+
 crawler = Crawl::Engine.new(options)
 
 trap("SIGINT") do
