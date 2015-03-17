@@ -10,7 +10,7 @@ Usage:
     -s, --start /home,/about         Starting path(s), defaults to /
     -u, --username username          Basic auth username
     -p, --password password          Basic auth password
-    -c, --connections count          Max mumber of parallel connections to use. The default is 20.
+    -c, --connections count          Max mumber of parallel connections to use. The default is 5.
     -v, --verbose                    Give details when crawling
     -h, --help                       Show this message
         --version                    Print version
