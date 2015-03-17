@@ -58,8 +58,11 @@ private
 
   def retrieve(page)
     puts "Fetching #{page.url} ..." if $verbose
-
-    full_url = options[:domain] + page.url
+    if page.url.start_with?('/')
+      full_url = options[:domain] + page.url
+    else
+      full_url = options[:domain] + page.source + '/' + page.url
+    end
 
     http = EventMachine::HttpRequest.new(full_url)
     req = http.get :redirects => MAX_REDIRECTS, :head => {'authorization' => [options[:username], options[:password]]}
