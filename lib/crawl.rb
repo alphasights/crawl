@@ -1,7 +1,6 @@
 # encoding: utf-8
 require('nokogiri')
 require('rest_client')
-require 'ci/reporter/core'
 require 'eventmachine'
 require 'em-http-request'
 require 'base64'
