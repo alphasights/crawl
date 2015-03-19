@@ -13,6 +13,14 @@ class Page
     @errors = nil
   end
 
+  def relative_url
+    if url.start_with?('/')
+      url
+    else
+      "#{source}/#{url}"
+    end
+  end
+
   def <=>(other)
     url <=> other.url
   end

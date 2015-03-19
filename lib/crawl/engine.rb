@@ -59,21 +59,21 @@ private
   def retrieve(page)
     puts "Fetching #{page.url} ..." if $verbose
 
-    full_url = options[:domain] + page.url
+    absolute_url = options[:domain] + page.relative_url
 
-    http = EventMachine::HttpRequest.new(full_url)
+    http = EventMachine::HttpRequest.new(absolute_url)
     req = http.get :redirects => MAX_REDIRECTS, :head => {'authorization' => [options[:username], options[:password]]}
     req.timeout(15)
 
     req.errback do
       if req.nil?
-         page.intermittent("Req is nil. WAT?")
+        page.intermittent("Req is nil. WAT?")
       elsif msg = req.error
-       page.intermittent(msg)
+        page.intermittent(msg)
       elsif req.response.nil? || req.response.empty?
-       page.intermittent('Timeout?')
+        page.intermittent('Timeout?')
       else
-       page.intermittent('Partial response: Server Broke Connection?')
+        page.intermittent('Partial response: Server Broke Connection?')
       end
       process_next
     end
