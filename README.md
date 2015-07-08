@@ -34,3 +34,8 @@ Example:
 
     5 pages crawled without errors.
 
+### Copyright and License
+
+Copyright AlphaSights and Contributors, 2015
+
+[MIT Licence](LICENSE.txt)
