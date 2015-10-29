@@ -9,7 +9,7 @@ class Crawl::Engine
                      :session_id => false}
 
 
-  IGNORE = [/#/, /mailto:/, /skype:/, /logout/, /javascript:/, %r(/xhr/), /https:/, /\.pdf$/, /^$/]
+  IGNORE = [/#/, /mailto:/, /skype:/, /logout/, /javascript:/, %r(/xhr/), /https:/, /\.pdf$/, /^$/, /tel:/]
   VALID_RESPONSE_CODES = [200, 302]
   MAX_REDIRECTS = 3
   LINE_WIDTH = 78
