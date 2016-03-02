@@ -14,6 +14,5 @@ require 'tmpdir'
 require_relative "crawl/version"
 require_relative "crawl/engine"
 require_relative "crawl/string"
-require_relative "crawl/failure"
 require_relative "crawl/register"
 require_relative "crawl/page"

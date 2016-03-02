@@ -35,23 +35,23 @@ class Page
 
   def success
     @error = nil
-    @register.completed(self)
+    register.completed(self)
   end
 
   def fatal(error)
     puts "  Fatal - #{error}" if $VERBOSE
     @error = error
-    @register.completed(self)
+    register.completed(self)
   end
 
   def intermittent(error)
     puts "  Intermittent - #{error}" if $VERBOSE
     if @attempts >= ATTEMPTS
       @error = error
-      @register.completed(self)
+      register.completed(self)
     else
       @attempts += 1
-      @register.retry(self)
+      register.retry(self)
     end
   end
 

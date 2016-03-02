@@ -88,7 +88,7 @@ private
       elsif(status_code == 503)
         page.intermittent("Status code: 503")
       else
-        page.fatal("Status code: #{status_code}")
+        page.fatal("Status code: #{status_code} \n #{response}")
       end
       process_next
     end
