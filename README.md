@@ -1,5 +1,8 @@
 # Crawl
 
+[![Circle CI](https://circleci.com/gh/alphasights/crawl/tree/master.svg?style=shield&circle-token=188c328ee0669c8eba8dbda7f7f9943445a50c70)](https://circleci.com/gh/alphasights/crawl/tree/master)
+
+
 Crawl pages within a domain, reporting any page that returns a bad response code
 
 Usage:
