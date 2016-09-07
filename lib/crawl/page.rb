@@ -17,8 +17,12 @@ class Page
     if url.start_with?('/')
       url
     else
-      "#{source}/#{url}"
+      "#{source_directory}/#{url}"
     end
+  end
+
+  def source_directory
+    File.split(source).first.sub(/^\./, '').sub(/\/$/, '')
   end
 
   def <=>(other)
