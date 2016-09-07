@@ -1,3 +1,5 @@
+require 'uri'
+
 class Page
   include Comparable
 
@@ -14,27 +16,19 @@ class Page
   end
 
   def relative_url
-    if url.start_with?('/')
-      url
-    else
-      "#{source_directory}/#{url}"
-    end
-  end
-
-  def source_directory
-    File.split(source).first.sub(/^\./, '').sub(/\/$/, '')
+    @relative_url ||= URI.join('http://example.com', source, url).path
   end
 
   def <=>(other)
-    url <=> other.url
+    relative_url <=> other.relative_url
   end
 
   def eql?(other)
-    url.eql?(other.url)
+    relative_url.eql?(other.relative_url)
   end
 
   def hash
-    url.hash
+    relative_url.hash
   end
 
   def success

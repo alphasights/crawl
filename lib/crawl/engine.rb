@@ -21,7 +21,7 @@ class Crawl::Engine
     @authorization = Base64.encode64("#{options[:username]}:#{options[:password]}")
     @register = Crawl::Register.new
 
-    start_pages = options[:start].to_a.map{|page| Page.new(@register, page, 'the command line')}
+    start_pages = options[:start].to_a.map{|page| Page.new(@register, page, '/')}
 
     @register.add(start_pages)
   end
