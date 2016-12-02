@@ -1,4 +1,6 @@
 # encoding: utf-8
+##
+# This class accepts the arguments passed to the crawl executable
 
 class Crawl::Engine
   DEFAULT_OPTIONS = {:domain => '',
@@ -18,11 +20,9 @@ class Crawl::Engine
 
   def initialize(caller_options = {})
     @options = DEFAULT_OPTIONS.merge(caller_options)
-    @authorization = Base64.encode64("#{options[:username]}:#{options[:password]}")
     @register = Crawl::Register.new
 
-    start_pages = options[:start].to_a.map{|page| Page.new(@register, page, '/')}
-
+    start_pages = options[:start].to_a.map{|page| Crawl::Page.new(@register, page, '/')}
     @register.add(start_pages)
   end
 
@@ -56,13 +56,27 @@ class Crawl::Engine
 
 private
 
+  def empty_string?(value)
+    value && value.empty?
+  end
+
+  def auth_headers
+    if !empty_string?(options[:username]) && !empty_string?(options[:password])
+      [options[:username], options[:password]]
+    elsif !empty_string?(options[:auth_token])
+      options[:auth_token]
+    else
+      nil
+    end
+  end
+
   def retrieve(page)
     puts "Fetching #{page.url} ..." if $verbose
 
     absolute_url = options[:domain] + page.relative_url
 
     http = EventMachine::HttpRequest.new(absolute_url)
-    req = http.get :redirects => MAX_REDIRECTS, :head => {'authorization' => [options[:username], options[:password]]}
+    req = http.get :redirects => MAX_REDIRECTS, :head => {'Authorization' => auth_headers}
     req.timeout(15)
 
     req.errback do
@@ -107,6 +121,6 @@ private
     raw_links.map!{|link| link.sub(options[:domain], '')}
     raw_links.delete_if{|link| link =~ %r{^http(s)?://} && !link.include?(options[:domain])}
     raw_links.delete_if{|link| IGNORE.any?{|pattern| link =~ pattern}}
-    raw_links.map{ |url| Page.new(@register, url, page.url) }
+    raw_links.map{ |url| Crawl::Page.new(@register, url, page.url) }
   end
 end

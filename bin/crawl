@@ -10,6 +10,7 @@ optparse = OptionParser.new do |opts|
   opts.on('-s', '--start /home,/about', Array, 'Starting path(s), defaults to /') { |o| options[:start] = o }
   opts.on('-u', '--username username', String, 'Basic auth username') { |o| options[:username] = o }
   opts.on('-p', '--password password', String, 'Basic auth password') { |o| options[:password] = o }
+  opts.on('-t', '--token token', String, 'Value of the "Authorization" header') { |o| options[:password] = o }
   opts.on('-c', '--connections count', Integer, "Max mumber of parallel connections to use. The default is #{EM.threadpool_size}.") { |o| EM.threadpool_size = o }
   opts.on('-v', '--verbose', 'Give details when crawling') { |o| $verbose = o }
   opts.on_tail("-h", "--help", "Show this message") { |o| puts opts; exit }
