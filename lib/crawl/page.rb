@@ -1,6 +1,6 @@
 require 'uri'
 
-class Page
+class Crawl::Page
   include Comparable
 
   attr_reader :register, :url, :source, :error
