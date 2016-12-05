@@ -64,7 +64,7 @@ private
     http = EventMachine::HttpRequest.new(absolute_url)
     req = http.get :redirects => MAX_REDIRECTS,
                    :connect_timeout => 20,
-                   :inactivity_timeout => 20
+                   :inactivity_timeout => 20,
                    :head => {
                      'authorization' => [
                        options[:username], options[:password]
