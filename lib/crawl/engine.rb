@@ -62,9 +62,14 @@ private
     absolute_url = options[:domain] + page.relative_url
 
     http = EventMachine::HttpRequest.new(absolute_url)
-    req = http.get :redirects => MAX_REDIRECTS, :head => {'authorization' => [options[:username], options[:password]]}
-    req.timeout(15)
-
+    req = http.get :redirects => MAX_REDIRECTS,
+                   :connect_timeout => 20,
+                   :inactivity_timeout => 20,
+                   :head => {
+                     'authorization' => [
+                       options[:username], options[:password]
+                      ]
+                    }
     req.errback do
       if req.nil?
         page.intermittent("Req is nil. WAT?")
